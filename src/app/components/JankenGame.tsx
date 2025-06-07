@@ -8,17 +8,21 @@ import { JankenChoices } from "@/components/JankenChoices";
 import { JankenResult } from "@/components/JankenResult";
 import { JankenControls } from "@/components/JankenControls";
 
+// 1秒遅延
+const GAME_DELAY_MS = 1000;
+
 /**
- * 0 -> あいこ
- * 1 -> プレイヤーの負け
- * 2 -> プレイヤーの勝ち
+ * じゃんけんの勝敗を計算する
+ * @param player - プレイヤーの選択
+ * @param computer - コンピューターの選択
+ * @returns 0: あいこ, 1: プレイヤーの負け, 2: プレイヤーの勝ち
  */
 function calculateGameResult(player: Choice, computer: Choice): GameResult {
     return ((player.numericValue - computer.numericValue + 3) % 3) as GameResult;
 }
 
 /**
- * 出す手をランダムに選ぶ
+ * コンピューターの手をランダムに選択
  */
 function getRandomChoice(): Choice {
     return choices[Math.floor(Math.random() * choices.length)];
@@ -28,34 +32,37 @@ export function JankenGame() {
     const [playerChoice, setPlayerChoice] = useState<Choice | null>(null);
     const [computerChoice, setComputerChoice] = useState<Choice | null>(null);
     const [result, setResult] = useState<ResultType>("");
-
     const [score, setScore] = useState({ player: 0, computer: 0 });
     const [isPlaying, setIsPlaying] = useState(false);
 
-    /**
-     * ゲームを実行する関数
-     */
+    const updateScore = useCallback((gameResult: GameResult) => {
+        if (gameResult === GameResult.WIN) {
+            setScore((prev) => ({ ...prev, player: prev.player + 1 }));
+        } else if (gameResult === GameResult.LOSE) {
+            setScore((prev) => ({ ...prev, computer: prev.computer + 1 }));
+        }
+    }, []);
+
+    // === メインゲームロジック ===
     const playGame = useCallback((selected: Choice) => {
+        if (isPlaying) return;
+
+        // UI初期化
         setIsPlaying(true);
         setPlayerChoice(selected);
         setComputerChoice(null);
+        setResult("");
 
+        // コンピューターの手を遅延表示
         setTimeout(() => {
             const computer = getRandomChoice();
             setComputerChoice(computer);
             const gameResult = calculateGameResult(selected, computer);
 
             setResult(resultMessages[gameResult]);
-
-            // スコア更新
-            if (gameResult === GameResult.WIN) {
-                setScore((prev) => ({ ...prev, player: prev.player + 1 }));
-            } else if (gameResult === GameResult.LOSE) {
-                setScore((prev) => ({ ...prev, computer: prev.computer + 1 }));
-            }
-
+            updateScore(gameResult);
             setIsPlaying(false);
-        }, 1000);
+        }, GAME_DELAY_MS);
     }, []);
 
     /**
